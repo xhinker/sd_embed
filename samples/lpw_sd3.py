@@ -3,9 +3,7 @@ import gc
 import torch
 from diffusers import StableDiffusion3Pipeline
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_sd3
-# import sd_embed.embedding_funcs.get_weighted_text_embeddings_sd3
 
-#%%
 model_path = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/stabilityai/stable-diffusion-3-medium-diffusers_main"
 # model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
 pipe = StableDiffusion3Pipeline.from_pretrained(
