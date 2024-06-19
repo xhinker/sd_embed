@@ -91,3 +91,13 @@ pipe.to('cpu')
 gc.collect()
 torch.cuda.empty_cache()
 ```
+
+### Results
+
+Without long prompt weighted embedding result:
+
+![alt text](./images/sd3_w_lpw_1.png)
+
+Using long weighted embedding result:
+
+![alt text](./images/sd3_wo_lpw_1.png)

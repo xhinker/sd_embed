@@ -60,3 +60,21 @@ del prompt_embeds, prompt_neg_embeds,pooled_prompt_embeds, negative_pooled_promp
 pipe.to('cpu')
 gc.collect()
 torch.cuda.empty_cache()
+
+
+#%% without lpw 
+pipe.to('cuda')
+image = pipe(
+    prompt                          = prompt
+    , negative_prompt               = neg_prompt
+    , num_inference_steps           = 30
+    , height                        = 1024 
+    , width                         = 1024 + 512
+    , guidance_scale                = 4.0
+    , generator                     = torch.Generator("cuda").manual_seed(2)
+).images[0]
+display(image)
+
+pipe.to('cpu')
+gc.collect()
+torch.cuda.empty_cache()
