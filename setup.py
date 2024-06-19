@@ -11,8 +11,11 @@ setup(
     , url              = 'https://github.com/xhinker/sd_embed'
     , keywords         = 'diffusers stable-diffusion embedding'
     , install_requires = [
-        'transformers'
-        ,'diffusers'
+        'torch'
+        , 'torchvision'
+        , 'torchaudio'
+        , 'transformers'
+        , 'diffusers'
     ]
     , include_package_data=True
 )

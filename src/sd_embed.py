@@ -1,10 +1,9 @@
-from .prompt_parser import parse_prompt_attention
+from prompt_parser import parse_prompt_attention
 from transformers import CLIPTokenizer,T5EncoderModel,T5Tokenizer
 from diffusers import StableDiffusionPipeline
 import torch
 from diffusers import StableDiffusionXLPipeline
 from diffusers import StableDiffusion3Pipeline
-
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
