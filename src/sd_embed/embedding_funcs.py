@@ -146,7 +146,7 @@ def group_tokens_and_weights(
         
     return new_token_ids, new_weights
 
-def get_weighted_text_embeddings_v15(
+def get_weighted_text_embeddings_sd15(
     pipe: StableDiffusionPipeline
     , prompt : str      = ""
     , neg_prompt: str   = ""
