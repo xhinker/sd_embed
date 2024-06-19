@@ -6,8 +6,8 @@ setup(
     , license          = 'Apache License'
     , author           = "Andrew Zhu"
     , author_email     = 'xhinker@hotmail.com'
-    , packages         = find_packages('sd_embed/src')
-    , package_dir      = {'': 'sd_embed/src'}
+    , packages         = find_packages('sd_embed')
+    , package_dir      = {'': 'src'}
     , url              = 'https://github.com/xhinker/sd_embed'
     , keywords         = 'diffusers stable-diffusion embedding'
     , install_requires = [

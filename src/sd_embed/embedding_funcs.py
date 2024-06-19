@@ -1,4 +1,4 @@
-from prompt_parser import parse_prompt_attention
+from sd_embed.prompt_parser import parse_prompt_attention
 from transformers import CLIPTokenizer,T5EncoderModel,T5Tokenizer
 from diffusers import StableDiffusionPipeline
 import torch
