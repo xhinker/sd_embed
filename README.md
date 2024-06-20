@@ -1,7 +1,7 @@
 # Stable Diffusion Long Prompt Weighted Embedding
 
 
-<a href="https://www.packtpub.com/product/using-stable-diffusion-with-python/9781835086377"><img src="https://m.media-amazon.com/images/I/81qJBJlgGEL._SL1500_.jpg" alt="Using Stable Diffusion with Python" height="256px" align="right"></a>
+<a href="https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373"><img src="https://m.media-amazon.com/images/I/81qJBJlgGEL._SL1500_.jpg" alt="Using Stable Diffusion with Python" height="256px" align="right"></a>
 
 Overcoming the 77-token prompt limitation, generating long-weighted prompt embeddings for Stable Diffusion, this module supports generating embedding and pooled embeddings for long prompt weighted. The generated embedding is compatible with [Huggingface Diffusers](https://github.com/huggingface/diffusers). 
 
