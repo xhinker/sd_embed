@@ -251,7 +251,7 @@ Without using long prompt weighted embedding:
 If you use `sd_embed` in your research, please cite the following work:
 
 ```
-@misc{sd_embed_2024 ,
+@misc{sd_embed_2024,
   author       = {Shudong Zhu(Andrew Zhu)},
   title        = {Long Prompt Weighted Stable Diffusion Embedding},
   howpublished = {\url{https://github.com/xhinker/sd_embed}},
