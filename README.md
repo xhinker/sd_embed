@@ -248,7 +248,7 @@ Without using long prompt weighted embedding:
 
 ## Citation
 
-If you use sd_embed in your research, please cite the following work:
+If you use `sd_embed` in your research, please cite the following work:
 
 ```
 @misc{sd_embed_2024 ,
