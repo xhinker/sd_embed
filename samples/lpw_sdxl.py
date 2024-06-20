@@ -51,7 +51,7 @@ image = pipe(
     , num_inference_steps           = 30
     , height                        = 1024 
     , width                         = 1024 + 512
-    , guidance_scale                = 4.0
+    , guidance_scale                = 8.0
     , generator                     = torch.Generator("cuda").manual_seed(2)
 ).images[0]
 display(image)
@@ -70,7 +70,7 @@ image = pipe(
     , num_inference_steps           = 30
     , height                        = 1024 
     , width                         = 1024 + 512
-    , guidance_scale                = 4.0
+    , guidance_scale                = 8.0
     , generator                     = torch.Generator("cuda").manual_seed(2)
 ).images[0]
 display(image)

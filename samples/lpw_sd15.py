@@ -45,9 +45,9 @@ image = pipe(
     prompt_embeds                   = prompt_embeds
     , negative_prompt_embeds        = prompt_neg_embeds
     , num_inference_steps           = 30
-    , height                        = 1024 
-    , width                         = 1024 + 512
-    , guidance_scale                = 4.0
+    , height                        = 768
+    , width                         = 896
+    , guidance_scale                = 8.0
     , generator                     = torch.Generator("cuda").manual_seed(2)
 ).images[0]
 display(image)
@@ -64,9 +64,9 @@ image = pipe(
     prompt                          = prompt
     , negative_prompt               = neg_prompt
     , num_inference_steps           = 30
-    , height                        = 1024 
-    , width                         = 1024 + 512
-    , guidance_scale                = 4.0
+    , height                        = 768
+    , width                         = 896
+    , guidance_scale                = 8.0
     , generator                     = torch.Generator("cuda").manual_seed(2)
 ).images[0]
 display(image)
