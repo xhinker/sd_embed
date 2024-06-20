@@ -1,3 +1,21 @@
+## -----------------------------------------------------------------------------
+# Generate unlimited size prompt with weighting for SD3&SDXL&SD15
+# If you use sd_embed in your research, please cite the following work:
+# 
+# ```
+# @misc{sd_embed_2024,
+#   author       = {Shudong Zhu(Andrew Zhu)},
+#   title        = {Long Prompt Weighted Stable Diffusion Embedding},
+#   howpublished = {\url{https://github.com/xhinker/sd_embed}},
+#   year         = {2024},
+# }
+# ```
+# Author: Andrew Zhu
+# Book: Using Stable Diffusion with Python, https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373
+# Github: https://github.com/xhinker
+# Medium: https://medium.com/@xhinker
+## -----------------------------------------------------------------------------
+
 from sd_embed.prompt_parser import parse_prompt_attention
 from transformers import CLIPTokenizer,T5EncoderModel,T5Tokenizer
 from diffusers import StableDiffusionPipeline
