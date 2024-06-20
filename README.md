@@ -185,8 +185,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_sd15
 
-model_path = "/home/andrewzhu/storage_1t_1/sd15_models/deliberate_v2"
-# model_path = "Lykon/dreamshaper-xl-1-0"
+model_path = "stablediffusionapi/deliberate-v2"
 pipe = StableDiffusionPipeline.from_pretrained(
     model_path,
     torch_dtype=torch.float16
@@ -245,3 +244,17 @@ Using long prompt weighted embedding:
 
 Without using long prompt weighted embedding:
 ![alt text](images/sd15_wo_lpw_1.png)
+
+
+## Citation
+
+If you use sd_embed in your research, please cite the following work:
+
+```
+@misc{sd_embed_2024 ,
+  author       = {Shudong Zhu(Andrew Zhu)},
+  title        = {Long Prompt Weighted Stable Diffusion Embedding},
+  howpublished = {\url{https://github.com/xhinker/sd_embed}},
+  year         = {2024},
+}
+```
