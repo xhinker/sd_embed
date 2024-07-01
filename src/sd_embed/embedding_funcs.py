@@ -273,8 +273,7 @@ def get_weighted_text_embeddings_sd15(
         token_embedding = pipe.text_encoder(token_tensor)[0].squeeze(0) 
         for j in range(len(weight_tensor)):
             token_embedding[j] = token_embedding[j] * weight_tensor[j]
-        token_embedding = token_embedding.unsqueeze(0)
-        embeds.append(token_embedding)
+        embeds.append(token_embedding.unsqueeze(0).cpu())
         
         # get negative prompt embeddings with weights
         neg_token_tensor = torch.tensor(
@@ -291,16 +290,28 @@ def get_weighted_text_embeddings_sd15(
             neg_token_embedding[z] = (
                 neg_token_embedding[z] * neg_weight_tensor[z]
             )
-        neg_token_embedding = neg_token_embedding.unsqueeze(0)
-        neg_embeds.append(neg_token_embedding)
+        neg_embeds.append(neg_token_embedding.unsqueeze(0).cpu())
+
+        # Free VRAM & RAM
+        token_tensor.cpu()
+        weight_tensor.cpu()
+        neg_token_tensor.cpu()
+        neg_weight_tensor.cpu()
+        del token_tensor, \
+            weight_tensor, \
+            token_embedding, \
+            neg_token_tensor, \
+            neg_weight_tensor, \
+            neg_token_embedding
+        torch.cuda.empty_cache()
     
-    prompt_embeds       = torch.cat(embeds, dim = 1)
-    neg_prompt_embeds   = torch.cat(neg_embeds, dim = 1)
+    prompt_embeds = torch.cat(embeds, dim = 1).to(device)
+    neg_prompt_embeds = torch.cat(neg_embeds, dim = 1).to(device)
     
     # recover clip layers
     if clip_skip > 0:
         pipe.text_encoder.text_model.encoder.layers = original_clip_layers
-    
+
     return prompt_embeds, neg_prompt_embeds
 
 @torch.no_grad()
@@ -561,7 +572,7 @@ def get_weighted_text_embeddings_sdxl(
         neg_token_embedding = neg_token_embedding.unsqueeze(0)
         neg_embeds.append(neg_token_embedding.cpu())
 
-        # Free VRAM
+        # Free VRAM & RAM
         del prompt_embeds_1_hidden_states, \
             prompt_embeds_2_hidden_states, \
             neg_prompt_embeds_1_hidden_states, \
