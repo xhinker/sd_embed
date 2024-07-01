@@ -729,7 +729,6 @@ def get_weighted_text_embeddings_sdxl_refiner(
         token_tensor_2.cpu()
         weight_tensor_2.cpu()
         prompt_embeds_2_hidden_states.cpu()
-        token_embedding.cpu()
         del token_tensor_2, \
             weight_tensor_2, \
             prompt_embeds_2, \
@@ -783,7 +782,6 @@ def get_weighted_text_embeddings_sdxl_refiner(
         neg_token_tensor_2.cpu()
         neg_weight_tensor_2.cpu()
         neg_prompt_embeds_2_hidden_states.cpu()
-        neg_token_embedding.cpu()
         del neg_token_tensor_2, \
             neg_weight_tensor_2, \
             neg_prompt_embeds_2, \
@@ -1305,7 +1303,6 @@ def get_weighted_text_embeddings_sd3(
         token_tensor_2.cpu()
         prompt_embeds_1_hidden_states.cpu()
         prompt_embeds_2_hidden_states.cpu()
-        token_embedding.cpu()
         del token_tensor,\
             weight_tensor, \
             token_tensor_2, \
@@ -1379,7 +1376,6 @@ def get_weighted_text_embeddings_sd3(
         neg_token_tensor_2.cpu()
         neg_prompt_embeds_1_hidden_states.cpu()
         neg_prompt_embeds_2_hidden_states.cpu()
-        neg_token_embedding.cpu()
         del neg_token_tensor, \
             neg_weight_tensor, \
             neg_token_tensor_2, \
