@@ -808,7 +808,6 @@ def get_weighted_text_embeddings_sdxl_refiner(
 
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
-
 @torch.no_grad()
 def get_weighted_text_embeddings_sdxl_2p(
         pipe: StableDiffusionXLPipeline
@@ -945,8 +944,8 @@ def get_weighted_text_embeddings_sdxl_2p(
         neg_prompt_weights      = neg_prompt_weights    + [1.0] * abs(neg_prompt_token_len - neg_prompt_token_len_2)
     
     print("prompt_token_len:", len(prompt_tokens))
-    print("prompt_token_len_2:", len(prompt_tokens))
-    
+    print("prompt_token_len_2:", len(prompt_tokens_2))
+
     print("neg_prompt_token_len:", len(neg_prompt_tokens))
     print("neg_prompt_token_len_2:", len(neg_prompt_tokens_2))
     
@@ -1030,7 +1029,7 @@ def get_weighted_text_embeddings_sdxl_2p(
         prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
         token_embedding = torch.cat(prompt_embeds_list, dim=-1)
         
-        embeds.append(token_embedding)
+        embeds.append(token_embedding.cpu())
         
         # get negative prompt embeddings with weights
         neg_token_tensor = torch.tensor(
@@ -1085,10 +1084,23 @@ def get_weighted_text_embeddings_sdxl_2p(
         neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states, neg_prompt_embeds_2_hidden_states]
         neg_token_embedding = torch.cat(neg_prompt_embeds_list, dim=-1)
         
-        neg_embeds.append(neg_token_embedding)
+        neg_embeds.append(neg_token_embedding.cpu())
+
+        # Free VRAM
+        token_tensor.cpu()
+        weight_tensor.cpu()
+        neg_token_tensor.cpu()
+        neg_weight_tensor.cpu()
+        del token_tensor,\
+            weight_tensor,\
+            token_embedding, \
+            neg_token_tensor,\
+            neg_weight_tensor,\
+            neg_token_embedding
+        torch.cuda.empty_cache()
     
-    prompt_embeds           = torch.cat(embeds, dim = 1)
-    negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1)
+    prompt_embeds           = torch.cat(embeds, dim=1).to(device)
+    negative_prompt_embeds  = torch.cat(neg_embeds, dim=1).to(device)
     
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
