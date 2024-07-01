@@ -464,15 +464,15 @@ def get_weighted_text_embeddings_sdxl(
             token_tensor.to(device)
             , output_hidden_states = True
         )
-        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2]
+        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2].cpu()
 
         # use second text encoder
         prompt_embeds_2 = pipe.text_encoder_2(
             token_tensor_2.to(device)
             , output_hidden_states = True
         )
-        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
-        pooled_prompt_embeds = prompt_embeds_2[0]
+        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2].cpu()
+        pooled_prompt_embeds = prompt_embeds_2[0].cpu()
 
         print(prompt_embeds_1_hidden_states.shape)
         print(prompt_embeds_2_hidden_states.shape)
@@ -503,7 +503,7 @@ def get_weighted_text_embeddings_sdxl(
                 token_embedding[j] = token_embedding[j] * weight_tensor[j]
 
         token_embedding = token_embedding.unsqueeze(0)
-        embeds.append(token_embedding)
+        embeds.append(token_embedding.cpu())
         
         # get negative prompt embeddings with weights
         neg_token_tensor = torch.tensor(
@@ -525,15 +525,15 @@ def get_weighted_text_embeddings_sdxl(
             neg_token_tensor.to(device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2]
+        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2].cpu()
 
         # use second text encoder
         neg_prompt_embeds_2 = pipe.text_encoder_2(
             neg_token_tensor_2.to(device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
-        negative_pooled_prompt_embeds = neg_prompt_embeds_2[0]
+        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2].cpu()
+        negative_pooled_prompt_embeds = neg_prompt_embeds_2[0].cpu()
 
         neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states, neg_prompt_embeds_2_hidden_states]
         neg_token_embedding = torch.concat(neg_prompt_embeds_list, dim=-1).squeeze(0).to(device)
@@ -559,10 +559,21 @@ def get_weighted_text_embeddings_sdxl(
                 neg_token_embedding[z] = neg_token_embedding[z] * neg_weight_tensor[z]
                 
         neg_token_embedding = neg_token_embedding.unsqueeze(0)
-        neg_embeds.append(neg_token_embedding)
+        neg_embeds.append(neg_token_embedding.cpu())
+
+        # Free VRAM
+        del prompt_embeds_1_hidden_states, \
+            prompt_embeds_2_hidden_states, \
+            neg_prompt_embeds_1_hidden_states, \
+            neg_prompt_embeds_2_hidden_states, \
+            prompt_embeds_1, \
+            prompt_embeds_2, \
+            neg_prompt_embeds_1, \
+            neg_prompt_embeds_2
+        torch.cuda.empty_cache()
     
-    prompt_embeds           = torch.cat(embeds, dim = 1)
-    negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1)
+    prompt_embeds           = torch.cat(embeds, dim = 1).to(device)
+    negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1).to(device)
     
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
