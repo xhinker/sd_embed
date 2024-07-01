@@ -16,6 +16,18 @@ Support Stable Diffusion v1.5, SDXL and **Stable Diffusion 3**.
 
 The detailed implementation is covered in chapter 10 of book [Using Stable Diffusion with Python](https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373/ref=sr_1_1?crid=2EF28F3KPIZMI&dib=eyJ2IjoiMSJ9.quUjZV6jP2UJs4Uv72YiPA.IPU_TA7myv0fiuvYuspHdYbCcFWhg7USvj1p9KI_4RM&dib_tag=se&keywords=Using+Stable+Diffusion+with+Python&qid=1717696681&sprefix=using+stable+diffusion+with+python%2Caps%2C184&sr=8-1)
 
+## Updates
+
+* [06/30/2024] Add support Stable Diffusion 3 pipeline without T5 encoder.
+```py
+model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
+pipe = StableDiffusion3Pipeline.from_pretrained(
+    model_path
+    , torch_dtype       = torch.float16
+    , text_encoder_3    = None          # <- load SD3 without T5 encoder
+)
+```
+
 ## Install 
 
 ```sh
@@ -24,7 +36,7 @@ pip install git+https://github.com/xhinker/sd_embed.git@main
 
 ## Stable Diffusion 3
 
-Generate long prompt weighted embeddings for Stable Diffusion 3. 
+Generate long prompt weighted embeddings for Stable Diffusion 3. A
 
 Load up SD3 model:
 ```py

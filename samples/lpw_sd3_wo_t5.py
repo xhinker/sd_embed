@@ -1,3 +1,6 @@
+'''
+SD Embedding usage sample for Stable Diffusion without T5 text encoder
+'''
 #%%
 import gc
 import torch
@@ -7,7 +10,8 @@ from sd_embed.embedding_funcs import get_weighted_text_embeddings_sd3
 model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
 pipe = StableDiffusion3Pipeline.from_pretrained(
     model_path
-    , torch_dtype=torch.float16
+    , torch_dtype       = torch.float16
+    , text_encoder_3    = None
 )
 
 #%%
@@ -40,8 +44,10 @@ bad hands,missing fingers,(extra arms and legs),(worst quality:2),(low quality:2
     pipe
     , prompt = prompt
     , neg_prompt = neg_prompt
+    , use_t5_encoder = False            
 )
 
+#%%
 image = pipe(
     prompt_embeds                   = prompt_embeds
     , negative_prompt_embeds        = prompt_neg_embeds

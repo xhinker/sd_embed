@@ -1035,26 +1035,10 @@ def get_weighted_text_embeddings_sd3(
         prompt (str)
         neg_prompt (str)
     Returns:
-        prompt_embeds (torch.Tensor)
-        neg_prompt_embeds (torch.Tensor)
-    
-    Example:
-        from diffusers import StableDiffusionPipeline
-        text2img_pipe = StableDiffusionPipeline.from_pretrained(
-            "stablediffusionapi/deliberate-v2"
-            , torch_dtype = torch.float16
-            , safety_checker = None
-        ).to("cuda:0")
-        prompt_embeds, neg_prompt_embeds = get_weighted_text_embeddings_v15(
-            pipe = text2img_pipe
-            , prompt = "a (white) cat" 
-            , neg_prompt = "blur"
-        )
-        image = text2img_pipe(
-            prompt_embeds = prompt_embeds
-            , negative_prompt_embeds = neg_prompt_embeds
-            , generator = torch.Generator(text2img_pipe.device).manual_seed(2)
-        ).images[0]
+        sd3_prompt_embeds (torch.Tensor)
+        sd3_neg_prompt_embeds (torch.Tensor)
+        pooled_prompt_embeds (torch.Tensor)
+        negative_pooled_prompt_embeds (torch.Tensor)
     """
     import math
     eos = pipe.tokenizer.eos_token_id 
@@ -1197,8 +1181,6 @@ def get_weighted_text_embeddings_sd3(
         prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
         pooled_prompt_embeds_2 = prompt_embeds_2[0]
 
-        print(prompt_embeds_1_hidden_states.shape)
-        print(prompt_embeds_2_hidden_states.shape)
         prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
         token_embedding = torch.concat(prompt_embeds_list, dim=-1).squeeze(0).to(pipe.device)
         
@@ -1291,25 +1273,30 @@ def get_weighted_text_embeddings_sd3(
     pooled_prompt_embeds = torch.cat([pooled_prompt_embeds_1, pooled_prompt_embeds_2], dim=-1)
     negative_pooled_prompt_embeds = torch.cat([negative_pooled_prompt_embeds_1, negative_pooled_prompt_embeds_2], dim=-1)
     
-    if use_t5_encoder:        
+    if use_t5_encoder and pipe.text_encoder_3:        
         # ----------------- generate positive t5 embeddings --------------------
         prompt_tokens_3 = torch.tensor([prompt_tokens_3],dtype=torch.long)
         
         t5_prompt_embeds    = pipe.text_encoder_3(prompt_tokens_3.to(pipe.device))[0].squeeze(0)
         t5_prompt_embeds    = t5_prompt_embeds.to(device=pipe.device)
+        print('t5 embedding shape:', t5_prompt_embeds.shape)
         
         # add weight to t5 prompt
         for z in range(len(prompt_weights_3)):
             if prompt_weights_3[z] != 1.0:
                 t5_prompt_embeds[z] = t5_prompt_embeds[z] * prompt_weights_3[z]
         t5_prompt_embeds = t5_prompt_embeds.unsqueeze(0)
+    else:
+        t5_prompt_embeds    = torch.zeros(1, 4096, dtype = prompt_embeds.dtype).unsqueeze(0)
+        t5_prompt_embeds    = t5_prompt_embeds.to(device=pipe.device)
         
-        # merge with the clip embedding 1 and clip embedding 2
-        clip_prompt_embeds = torch.nn.functional.pad(
-            prompt_embeds, (0, t5_prompt_embeds.shape[-1] - prompt_embeds.shape[-1])
-        )
-        sd3_prompt_embeds = torch.cat([clip_prompt_embeds, t5_prompt_embeds], dim=-2)
-        
+    # merge with the clip embedding 1 and clip embedding 2
+    clip_prompt_embeds = torch.nn.functional.pad(
+        prompt_embeds, (0, t5_prompt_embeds.shape[-1] - prompt_embeds.shape[-1])
+    )
+    sd3_prompt_embeds = torch.cat([clip_prompt_embeds, t5_prompt_embeds], dim=-2)
+    
+    if use_t5_encoder and pipe.text_encoder_3:  
         # ---------------------- get neg t5 embeddings -------------------------
         neg_prompt_tokens_3 = torch.tensor([neg_prompt_tokens_3],dtype=torch.long)
         
@@ -1321,28 +1308,28 @@ def get_weighted_text_embeddings_sd3(
             if neg_prompt_weights_3[z] != 1.0:
                 t5_neg_prompt_embeds[z] = t5_neg_prompt_embeds[z] * neg_prompt_weights_3[z]
         t5_neg_prompt_embeds = t5_neg_prompt_embeds.unsqueeze(0)
+    else: 
+        t5_neg_prompt_embeds    = torch.zeros(1, 4096, dtype = prompt_embeds.dtype).unsqueeze(0)
+        t5_neg_prompt_embeds    = t5_prompt_embeds.to(device=pipe.device)
 
-        clip_neg_prompt_embeds = torch.nn.functional.pad(
-            negative_prompt_embeds, (0, t5_neg_prompt_embeds.shape[-1] - negative_prompt_embeds.shape[-1])
-        )
-        sd3_neg_prompt_embeds = torch.cat([clip_neg_prompt_embeds, t5_neg_prompt_embeds], dim=-2)
-        
-        # padding 
-        import torch.nn.functional as F
-        size_diff = sd3_neg_prompt_embeds.size(1) - sd3_prompt_embeds.size(1)
-        # Calculate padding. Format for pad is (padding_left, padding_right, padding_top, padding_bottom, padding_front, padding_back)
-        # Since we are padding along the second dimension (axis=1), we need (0, 0, padding_top, padding_bottom, 0, 0)
-        # Here padding_top will be 0 and padding_bottom will be size_diff
+    clip_neg_prompt_embeds = torch.nn.functional.pad(
+        negative_prompt_embeds, (0, t5_neg_prompt_embeds.shape[-1] - negative_prompt_embeds.shape[-1])
+    )
+    sd3_neg_prompt_embeds = torch.cat([clip_neg_prompt_embeds, t5_neg_prompt_embeds], dim=-2)
+    
+    # padding 
+    import torch.nn.functional as F
+    size_diff = sd3_neg_prompt_embeds.size(1) - sd3_prompt_embeds.size(1)
+    # Calculate padding. Format for pad is (padding_left, padding_right, padding_top, padding_bottom, padding_front, padding_back)
+    # Since we are padding along the second dimension (axis=1), we need (0, 0, padding_top, padding_bottom, 0, 0)
+    # Here padding_top will be 0 and padding_bottom will be size_diff
 
-        # Check if padding is needed
-        if size_diff > 0:
-            padding = (0, 0, 0, abs(size_diff), 0, 0)
-            sd3_prompt_embeds = F.pad(sd3_prompt_embeds, padding)
-        elif size_diff < 0:
-            padding = (0, 0, 0, abs(size_diff), 0, 0)
-            sd3_neg_prompt_embeds = F.pad(sd3_neg_prompt_embeds, padding)
-    else:
-        sd3_prompt_embeds       = prompt_embeds
-        sd3_neg_prompt_embeds   = negative_prompt_embeds
+    # Check if padding is needed
+    if size_diff > 0:
+        padding = (0, 0, 0, abs(size_diff), 0, 0)
+        sd3_prompt_embeds = F.pad(sd3_prompt_embeds, padding)
+    elif size_diff < 0:
+        padding = (0, 0, 0, abs(size_diff), 0, 0)
+        sd3_neg_prompt_embeds = F.pad(sd3_neg_prompt_embeds, padding)
     
     return sd3_prompt_embeds, sd3_neg_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
