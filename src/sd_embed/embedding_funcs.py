@@ -1106,12 +1106,12 @@ def get_weighted_text_embeddings_sdxl_2p(
 
 @torch.no_grad()
 def get_weighted_text_embeddings_sd3(
-        pipe: StableDiffusion3Pipeline,
-        prompt: str = "",
-        neg_prompt: str = "",
-        pad_last_block: bool = True,
-        use_t5_encoder: bool = True,
-        device: str = None
+    pipe: StableDiffusion3Pipeline
+    , prompt : str      = ""
+    , neg_prompt: str   = ""
+    , pad_last_block    = True
+    , use_t5_encoder    = True
+    , device: str       = None
 ):
     """
     This function can process long prompt with weights, no length limitation 
