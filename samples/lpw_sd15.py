@@ -5,7 +5,7 @@ from diffusers import StableDiffusionPipeline
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_sd15
 
 model_path = "/home/andrewzhu/storage_1t_1/sd15_models/deliberate_v2"
-# model_path = "Lykon/dreamshaper-xl-1-0"
+# model_path = "stablediffusionapi/deliberate-v2"
 pipe = StableDiffusionPipeline.from_pretrained(
     model_path,
     torch_dtype=torch.float16
