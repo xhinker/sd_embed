@@ -789,20 +789,13 @@ def get_weighted_text_embeddings_sdxl_refiner(
             neg_token_embedding
         torch.cuda.empty_cache()
 
-    # Free VRAM as needed
     prompt_embeds = torch.cat([e.to(device) for e in embeds], dim = 1)
-    
-    for t in embeds:
-        t.cpu()
+
+    # Free RAM as needed
     del embeds
     
     negative_prompt_embeds = torch.cat([e.to(device) for e in neg_embeds], dim = 1)
-    
-    for t in neg_embeds:
-        t.cpu()
     del neg_embeds
-    
-    torch.cuda.empty_cache()
 
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
@@ -1388,18 +1381,11 @@ def get_weighted_text_embeddings_sd3(
 
     prompt_embeds = torch.cat([e.to(device) for e in embeds], dim=1)
     
-    # Free VRAM as needed
-    for t in embeds:
-        t.cpu()
+    # Free RAM as needed
     del embeds
     
     negative_prompt_embeds = torch.cat([e.to(device) for e in neg_embeds], dim=1)
-    
-    for t in neg_embeds:
-        t.cpu()
     del neg_embeds
-    
-    torch.cuda.empty_cache()
 
     pooled_prompt_embeds = torch.cat([pooled_prompt_embeds_1, pooled_prompt_embeds_2], dim=-1)
     negative_pooled_prompt_embeds = torch.cat([negative_pooled_prompt_embeds_1, negative_pooled_prompt_embeds_2], dim=-1)
