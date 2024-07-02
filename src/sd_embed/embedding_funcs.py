@@ -1439,7 +1439,9 @@ def get_weighted_text_embeddings_sd3(
     )
     sd3_neg_prompt_embeds = torch.cat([clip_neg_prompt_embeds.to(device), t5_neg_prompt_embeds.to(device)], dim=-2)
 
-    # Free RAM
+    # Free VRAM
+    clip_neg_prompt_embeds.cpu()
+    t5_neg_prompt_embeds.cpu()
     del clip_neg_prompt_embeds, \
         t5_neg_prompt_embeds
     torch.cuda.empty_cache()
