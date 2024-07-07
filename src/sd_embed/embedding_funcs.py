@@ -25,7 +25,7 @@ from diffusers import StableDiffusion3Pipeline
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
-    , prompt: str
+    , prompt: str = None
 ):
     """
     Get prompt token ids and weights, this function works for both prompt and negative prompt
@@ -58,6 +58,9 @@ def get_prompts_tokens_with_weights(
             ,prompt = "a (red:1.5) cat"*70
         )
     """
+    if (prompt is None) or (len(prompt)<1):
+        prompt = "empty"
+    
     texts_and_weights = parse_prompt_attention(prompt)
     text_tokens,text_weights = [],[]
     for word, weight in texts_and_weights:
@@ -86,6 +89,9 @@ def get_prompts_tokens_with_weights_t5(
     """
     Get prompt token ids and weights, this function works for both prompt and negative prompt
     """
+    if (prompt is None) or (len(prompt)<1):
+        prompt = "empty"
+    
     texts_and_weights = parse_prompt_attention(prompt)
     text_tokens,text_weights = [],[]
     for word, weight in texts_and_weights:
