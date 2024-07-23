@@ -117,7 +117,7 @@ def get_prompts_tokens_with_weights_t5(
 def group_tokens_and_weights(
     token_ids: list
     , weights: list
-    , pad_last_block = False
+    , pad_last_block = True
 ):
     """
     Produce tokens and weights in groups and pad the missing tokens
