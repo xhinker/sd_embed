@@ -121,7 +121,7 @@ image = pipe(
     , width                     = 1024 
     , height                    = 1680 
     , num_inference_steps       = 20
-    , generator                 = torch.Generator().manual_seed(i)
+    , generator                 = torch.Generator().manual_seed(seed)
     , guidance_scale            = 3.5
 ).images[0]
 display(image)
