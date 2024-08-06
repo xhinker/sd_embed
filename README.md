@@ -104,7 +104,7 @@ A dreamy, soft-focus photograph capturing a romantic Jane Austen movie scene,
 in the style of Agnes Cecile. Delicate watercolors, misty background, 
 Regency-era couple, tender embrace, period clothing, flowing dress, dappled sunlight, 
 ethereal glow, gentle expressions, intricate lace, muted pastels, serene countryside, 
-timeless romance, poetic atmosphere, wistful mood.
+timeless romance, poetic atmosphere, wistful mood, look at camera.
 """
 
 pipe_device = 'cuda:0'
