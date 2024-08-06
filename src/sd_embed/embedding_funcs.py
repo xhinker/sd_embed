@@ -18,10 +18,12 @@
 
 from sd_embed.prompt_parser import parse_prompt_attention
 from transformers import CLIPTokenizer,T5EncoderModel,T5Tokenizer
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, DiffusionPipeline
 import torch
 from diffusers import StableDiffusionXLPipeline
 from diffusers import StableDiffusion3Pipeline
+import math
+from diffusers import FluxPipeline
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
@@ -1339,3 +1341,91 @@ def get_weighted_text_embeddings_sd3(
         sd3_neg_prompt_embeds = F.pad(sd3_neg_prompt_embeds, padding)
     
     return sd3_prompt_embeds, sd3_neg_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
+
+def get_weighted_text_embeddings_flux1(
+    pipe: FluxPipeline
+    , prompt : str      = ""
+    , prompt2: str      = None
+    , device            = None
+):
+    """
+    This function can process long prompt with weights for flux1 model
+    
+    Args:
+
+    Returns:
+
+    """
+    prompt2 = prompt if prompt2 is None else prompt2
+    if device is None:
+        device = pipe.device
+    
+    # tokenizer 1 - openai/clip-vit-large-patch14
+    prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
+        pipe.tokenizer, prompt
+    )
+    
+    # tokenizer 2 - google/t5-v1_1-xxl
+    prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights_t5(
+        pipe.tokenizer_2, prompt2
+    )
+    
+    prompt_token_groups, prompt_weight_groups = group_tokens_and_weights(
+        prompt_tokens.copy()
+        , prompt_weights.copy()
+        , pad_last_block = True
+    )
+        
+    # # get positive prompt embeddings, flux1 use only text_encoder 1 pooled embeddings
+    # token_tensor = torch.tensor(
+    #     [prompt_token_groups[0]]
+    #     , dtype = torch.long, device = device
+    # )
+    # # use first text encoder
+    # prompt_embeds_1 = pipe.text_encoder(
+    #     token_tensor.to(device)
+    #     , output_hidden_states  = False
+    # )
+    # pooled_prompt_embeds_1  = prompt_embeds_1.pooler_output
+    # prompt_embeds           = pooled_prompt_embeds_1.to(dtype = pipe.text_encoder.dtype, device = device)
+    
+    # use avg pooling embeddings
+    pool_embeds_list = []
+    for token_group in prompt_token_groups:
+        token_tensor = torch.tensor(
+            [token_group]
+            , dtype = torch.long
+            , device = device
+        )
+        prompt_embeds_1 = pipe.text_encoder(
+            token_tensor.to(device)
+            , output_hidden_states  = False
+        )
+        pooled_prompt_embeds = prompt_embeds_1.pooler_output.squeeze(0)
+        pool_embeds_list.append(pooled_prompt_embeds)
+        
+    prompt_embeds = torch.stack(pool_embeds_list,dim=0)
+    print(prompt_embeds.shape)
+    
+    # get the avg pool
+    prompt_embeds = prompt_embeds.mean(dim=0, keepdim=True)
+    # prompt_embeds = prompt_embeds.unsqueeze(0)
+    prompt_embeds = prompt_embeds.to(dtype = pipe.text_encoder.dtype, device = device)
+    print(f"final pooling embeds shape:", prompt_embeds.shape)
+            
+    # generate positive t5 embeddings 
+    prompt_tokens_2 = torch.tensor([prompt_tokens_2],dtype=torch.long)
+    
+    t5_prompt_embeds    = pipe.text_encoder_2(prompt_tokens_2.to(pipe.device))[0].squeeze(0)
+    t5_prompt_embeds    = t5_prompt_embeds.to(device=device)
+    
+    # add weight to t5 prompt
+    for z in range(len(prompt_weights_2)):
+        if prompt_weights_2[z] != 1.0:
+            t5_prompt_embeds[z] = t5_prompt_embeds[z] * prompt_weights_2[z]
+    t5_prompt_embeds = t5_prompt_embeds.unsqueeze(0)
+    
+    t5_prompt_embeds = t5_prompt_embeds.to(dtype = pipe.text_encoder_2.dtype, device = device)
+    print('t5 embedding shape:', t5_prompt_embeds.shape)
+    
+    return t5_prompt_embeds,prompt_embeds
