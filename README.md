@@ -18,6 +18,8 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 
 ## Updates
 
+* [08/06/2024] Add FLUX.1 long prompt support, check out `samples/lpw_flux1.py` file to see the usage sample.
+
 * [06/30/2024] Add support Stable Diffusion 3 pipeline without T5 encoder.
 ```py
 model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
@@ -33,6 +35,106 @@ pipe = StableDiffusion3Pipeline.from_pretrained(
 ```sh
 pip install git+https://github.com/xhinker/sd_embed.git@main
 ```
+
+## Flux.1
+
+To use Flux.1 in a 24G VRAM GPU, we need to quantize the Transformer model and T5 text encoder model to `qfloat8` using `optimum-quanto`. see [Quanto: a PyTorch quantization backend for Optimum](https://huggingface.co/blog/quanto-introduction) and [Memory-efficient Diffusion Transformers with Quanto and Diffusers](https://huggingface.co/blog/quanto-diffusers) to convert Diffusion model weights to `qfloat8` so that we can use Flux in a 24G VRAM with Diffusers. 
+
+Here is the complete usage sample: 
+
+```py
+import torch
+from optimum.quanto import freeze, qfloat8, quantize
+from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
+from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
+from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
+from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
+from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
+
+dtype = torch.bfloat16
+
+# bfl_repo = "black-forest-labs/FLUX.1-schnell"
+# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-schnell_main"
+bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
+revision = "refs/pr/1"
+
+scheduler       = FlowMatchEulerDiscreteScheduler.from_pretrained(
+    bfl_repo
+    , subfolder     = "scheduler"
+    , revision      = revision
+)
+text_encoder    = CLIPTextModel.from_pretrained(
+    bfl_repo
+    , subfolder     = "text_encoder"
+    , torch_dtype   = dtype
+)
+tokenizer       = CLIPTokenizer.from_pretrained(
+    bfl_repo
+    , subfolder     = "tokenizer" 
+    , torch_dtype=dtype
+)
+text_encoder_2  = T5EncoderModel.from_pretrained(bfl_repo, subfolder="text_encoder_2", torch_dtype=dtype, revision=revision)
+tokenizer_2     = T5TokenizerFast.from_pretrained(bfl_repo, subfolder="tokenizer_2", torch_dtype=dtype, revision=revision)
+vae             = AutoencoderKL.from_pretrained(bfl_repo, subfolder="vae", torch_dtype=dtype, revision=revision)
+transformer     = FluxTransformer2DModel.from_pretrained(bfl_repo, subfolder="transformer", torch_dtype=dtype, revision=revision)
+
+#%%
+quantize(transformer, weights=qfloat8)
+freeze(transformer)
+
+quantize(text_encoder_2, weights=qfloat8)
+freeze(text_encoder_2)
+
+#%%
+pipe = FluxPipeline(
+    scheduler         = scheduler
+    , text_encoder    = text_encoder
+    , tokenizer       = tokenizer
+    , text_encoder_2  = None 
+    , tokenizer_2     = tokenizer_2
+    , vae             = vae
+    , transformer     = None
+)
+pipe.text_encoder_2 = text_encoder_2
+pipe.transformer = transformer
+
+#%%
+prompt = """\
+A dreamy, soft-focus photograph capturing a romantic Jane Austen movie scene, 
+in the style of Agnes Cecile. Delicate watercolors, misty background, 
+Regency-era couple, tender embrace, period clothing, flowing dress, dappled sunlight, 
+ethereal glow, gentle expressions, intricate lace, muted pastels, serene countryside, 
+timeless romance, poetic atmosphere, wistful mood, look at camera.
+"""
+
+pipe_device = 'cuda:0'
+pipe.to(pipe_device)
+prompt_embeds, pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
+    pipe = pipe
+    , prompt = prompt
+)
+
+seed = 50
+image = pipe(
+    prompt_embeds               = prompt_embeds
+    , pooled_prompt_embeds      = pooled_prompt_embeds
+    , width                     = 1024 
+    , height                    = 1680 
+    , num_inference_steps       = 20
+    , generator                 = torch.Generator().manual_seed(seed)
+    , guidance_scale            = 3.5
+).images[0]
+display(image)
+
+del prompt_embeds,pooled_prompt_embeds
+pipe.to('cpu')
+torch.cuda.empty_cache()
+```
+
+If you use `FLUX.1-schnell`, set `num_inference_steps` to `4`. 
+
+![alt text](images/flux1_dev_sample.png)
+
 
 ## Stable Diffusion 3
 
