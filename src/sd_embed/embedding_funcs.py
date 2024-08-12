@@ -1546,7 +1546,7 @@ def get_weighted_text_embeddings_flux1(
     # generate positive t5 embeddings 
     prompt_tokens_2 = torch.tensor([prompt_tokens_2],dtype=torch.long)
     
-    t5_prompt_embeds    = pipe.text_encoder_2(prompt_tokens_2.to(pipe.device))[0].squeeze(0)
+    t5_prompt_embeds    = pipe.text_encoder_2(prompt_tokens_2.to(device))[0].squeeze(0)
     t5_prompt_embeds    = t5_prompt_embeds.to(device=device)
     
     # add weight to t5 prompt
