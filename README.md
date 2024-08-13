@@ -54,10 +54,7 @@ from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 dtype = torch.bfloat16
 
-# bfl_repo = "black-forest-labs/FLUX.1-schnell"
-# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-schnell_main"
-# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
-# revision = "refs/pr/1"
+bfl_repo = "black-forest-labs/FLUX.1-schnell"
 
 pipe = FluxPipeline.from_pretrained(
     pretrained_model_name_or_path   = bfl_repo
