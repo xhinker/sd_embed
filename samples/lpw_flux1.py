@@ -11,48 +11,25 @@ dtype = torch.bfloat16
 
 # bfl_repo = "black-forest-labs/FLUX.1-schnell"
 # bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-schnell_main"
-bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
-revision = "refs/pr/1"
+# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
+# revision = "refs/pr/1"
 
-scheduler       = FlowMatchEulerDiscreteScheduler.from_pretrained(
-    bfl_repo
-    , subfolder     = "scheduler"
-    , revision      = revision
+pipe = FluxPipeline.from_pretrained(
+    pretrained_model_name_or_path   = bfl_repo
+    , torch_dtype                   = torch.bfloat16
 )
-text_encoder    = CLIPTextModel.from_pretrained(
-    bfl_repo
-    , subfolder     = "text_encoder"
-    , torch_dtype   = dtype
-)
-tokenizer       = CLIPTokenizer.from_pretrained(
-    bfl_repo
-    , subfolder     = "tokenizer" 
-    , torch_dtype=dtype
-)
-text_encoder_2  = T5EncoderModel.from_pretrained(bfl_repo, subfolder="text_encoder_2", torch_dtype=dtype, revision=revision)
-tokenizer_2     = T5TokenizerFast.from_pretrained(bfl_repo, subfolder="tokenizer_2", torch_dtype=dtype, revision=revision)
-vae             = AutoencoderKL.from_pretrained(bfl_repo, subfolder="vae", torch_dtype=dtype, revision=revision)
-transformer     = FluxTransformer2DModel.from_pretrained(bfl_repo, subfolder="transformer", torch_dtype=dtype, revision=revision)
 
 #%%
-quantize(transformer, weights=qfloat8)
-freeze(transformer)
+weight_quant = qfloat8
+quantize(pipe.transformer, weights=weight_quant)
+freeze(pipe.transformer)
 
-quantize(text_encoder_2, weights=qfloat8)
-freeze(text_encoder_2)
+quantize(pipe.text_encoder, weights=weight_quant)
+freeze(pipe.text_encoder)
 
-#%%
-pipe = FluxPipeline(
-    scheduler         = scheduler
-    , text_encoder    = text_encoder
-    , tokenizer       = tokenizer
-    , text_encoder_2  = None 
-    , tokenizer_2     = tokenizer_2
-    , vae             = vae
-    , transformer     = None
-)
-pipe.text_encoder_2 = text_encoder_2
-pipe.transformer = transformer
+quantize(pipe.text_encoder_2, weights=weight_quant)
+freeze(pipe.text_encoder_2)
+pipe.enable_model_cpu_offload()
 
 #%%
 prompt = """\
