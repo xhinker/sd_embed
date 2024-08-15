@@ -475,8 +475,6 @@ def get_weighted_text_embeddings_sdxl(
         prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
         pooled_prompt_embeds = prompt_embeds_2[0]
 
-        print(prompt_embeds_1_hidden_states.shape)
-        print(prompt_embeds_2_hidden_states.shape)
         prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
         token_embedding = torch.concat(prompt_embeds_list, dim=-1).squeeze(0).to(pipe.device)
         
@@ -877,12 +875,6 @@ def get_weighted_text_embeddings_sdxl_2p(
     else:
         neg_prompt_tokens       = neg_prompt_tokens     + [eos] * abs(neg_prompt_token_len - neg_prompt_token_len_2)
         neg_prompt_weights      = neg_prompt_weights    + [1.0] * abs(neg_prompt_token_len - neg_prompt_token_len_2)
-    
-    print("prompt_token_len:", len(prompt_tokens))
-    print("prompt_token_len_2:", len(prompt_tokens))
-    
-    print("neg_prompt_token_len:", len(neg_prompt_tokens))
-    print("neg_prompt_token_len_2:", len(neg_prompt_tokens_2))
     
     embeds = []
     neg_embeds = []
@@ -1287,7 +1279,6 @@ def get_weighted_text_embeddings_sd3(
         
         t5_prompt_embeds    = pipe.text_encoder_3(prompt_tokens_3.to(pipe.device))[0].squeeze(0)
         t5_prompt_embeds    = t5_prompt_embeds.to(device=pipe.device)
-        print('t5 embedding shape:', t5_prompt_embeds.shape)
         
         # add weight to t5 prompt
         for z in range(len(prompt_weights_3)):
@@ -1405,13 +1396,11 @@ def get_weighted_text_embeddings_flux1(
         pool_embeds_list.append(pooled_prompt_embeds)
         
     prompt_embeds = torch.stack(pool_embeds_list,dim=0)
-    print(prompt_embeds.shape)
     
     # get the avg pool
     prompt_embeds = prompt_embeds.mean(dim=0, keepdim=True)
     # prompt_embeds = prompt_embeds.unsqueeze(0)
     prompt_embeds = prompt_embeds.to(dtype = pipe.text_encoder.dtype, device = device)
-    print(f"final pooling embeds shape:", prompt_embeds.shape)
             
     # generate positive t5 embeddings 
     prompt_tokens_2 = torch.tensor([prompt_tokens_2],dtype=torch.long)
@@ -1426,6 +1415,5 @@ def get_weighted_text_embeddings_flux1(
     t5_prompt_embeds = t5_prompt_embeds.unsqueeze(0)
     
     t5_prompt_embeds = t5_prompt_embeds.to(dtype = pipe.text_encoder_2.dtype, device = device)
-    print('t5 embedding shape:', t5_prompt_embeds.shape)
     
     return t5_prompt_embeds,prompt_embeds
