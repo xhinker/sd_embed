@@ -46,16 +46,11 @@ Here is the complete usage sample:
 #%%
 import torch
 from optimum.quanto import freeze, qfloat8, quantize
-from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
-from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
-from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 dtype = torch.bfloat16
-
 bfl_repo = "black-forest-labs/FLUX.1-schnell"
-
 pipe = FluxPipeline.from_pretrained(
     pretrained_model_name_or_path   = bfl_repo
     , torch_dtype                   = torch.bfloat16
@@ -71,7 +66,6 @@ freeze(pipe.text_encoder)
 
 quantize(pipe.text_encoder_2, weights=weight_quant)
 freeze(pipe.text_encoder_2)
-pipe.enable_model_cpu_offload()
 
 #%%
 prompt = """\
