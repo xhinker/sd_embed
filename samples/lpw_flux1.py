@@ -1,19 +1,11 @@
 #%%
 import torch
 from optimum.quanto import freeze, qfloat8, quantize
-from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
-from diffusers.models.transformers.transformer_flux import FluxTransformer2DModel
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
-from transformers import CLIPTextModel, CLIPTokenizer,T5EncoderModel, T5TokenizerFast
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
 dtype = torch.bfloat16
-
-# bfl_repo = "black-forest-labs/FLUX.1-schnell"
-# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-schnell_main"
-# bfl_repo = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
-# revision = "refs/pr/1"
-
+bfl_repo = "black-forest-labs/FLUX.1-schnell"
 pipe = FluxPipeline.from_pretrained(
     pretrained_model_name_or_path   = bfl_repo
     , torch_dtype                   = torch.bfloat16
@@ -29,7 +21,6 @@ freeze(pipe.text_encoder)
 
 quantize(pipe.text_encoder_2, weights=weight_quant)
 freeze(pipe.text_encoder_2)
-pipe.enable_model_cpu_offload()
 
 #%%
 prompt = """\
