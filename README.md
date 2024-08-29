@@ -43,29 +43,28 @@ To use Flux.1 in a 24G VRAM GPU, we need to quantize the Transformer model and T
 Here is the complete usage sample: 
 
 ```py
-#%%
+from diffusers import DiffusionPipeline, FluxTransformer2DModel
+from torchao.quantization import quantize_, int8_weight_only
 import torch
-from optimum.quanto import freeze, qfloat8, quantize
-from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 
-dtype = torch.bfloat16
-bfl_repo = "black-forest-labs/FLUX.1-schnell"
-pipe = FluxPipeline.from_pretrained(
-    pretrained_model_name_or_path   = bfl_repo
-    , torch_dtype                   = torch.bfloat16
+# model_path = "black-forest-labs/FLUX.1-schnell"
+model_path = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
+
+transformer = FluxTransformer2DModel.from_pretrained(
+    model_path
+    , subfolder = "transformer"
+    , torch_dtype = torch.bfloat16
+)
+quantize_(transformer, int8_weight_only())
+
+pipe = DiffusionPipeline.from_pretrained(
+    model_path
+    , transformer = transformer
+    , torch_dtype = torch.bfloat16
 )
 
-#%%
-weight_quant = qfloat8
-quantize(pipe.transformer, weights=weight_quant)
-freeze(pipe.transformer)
-
-quantize(pipe.text_encoder, weights=weight_quant)
-freeze(pipe.text_encoder)
-
-quantize(pipe.text_encoder_2, weights=weight_quant)
-freeze(pipe.text_encoder_2)
+pipe.enable_model_cpu_offload()
 
 #%%
 prompt = """\
@@ -76,28 +75,20 @@ ethereal glow, gentle expressions, intricate lace, muted pastels, serene country
 timeless romance, poetic atmosphere, wistful mood, look at camera.
 """
 
-pipe_device = 'cuda:0'
-pipe.to(pipe_device)
 prompt_embeds, pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
-    pipe = pipe
-    , prompt = prompt
+    pipe        = pipe
+    , prompt    = prompt
 )
-
-seed = 1234
 image = pipe(
     prompt_embeds               = prompt_embeds
     , pooled_prompt_embeds      = pooled_prompt_embeds
-    , width                     = 1024 #1280 #1680 #1024 
-    , height                    = 1680 #1280 #1024 #1680 #1024
+    , width                     = 896
+    , height                    = 1280
     , num_inference_steps       = 20
-    , generator                 = torch.Generator().manual_seed(seed)
-    , guidance_scale            = 3.5
+    , guidance_scale            = 4.0
+    , generator                 = torch.Generator().manual_seed(1234)
 ).images[0]
 display(image)
-
-del prompt_embeds,pooled_prompt_embeds
-pipe.to('cpu')
-torch.cuda.empty_cache()
 ```
 
 If you use `FLUX.1-schnell`, set `num_inference_steps` to `4`. 
