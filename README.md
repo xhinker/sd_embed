@@ -18,6 +18,8 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 
 ## Updates
 
+* [08/29/2024] Add a tool to convert Civitai.com FLUX model to Diffusers format.
+
 * [08/28/2024] Support `pipe.enable_model_cpu_offload()`, update sample code to use `torchao`, reduce VRAM usage.
 
 * [08/06/2024] Add FLUX.1 long prompt support, check out `samples/lpw_flux1.py` file to see the usage sample.
@@ -45,7 +47,12 @@ Install `sd_embed`:
 pip install git+https://github.com/xhinker/sd_embed.git@main
 ```
 
+
 ## Flux.1
+
+<details>
+
+<summary>Flux.1 embedding usage</summary>
 
 To use Flux.1 in a 24G VRAM GPU, we need to quantize the Transformer model and T5 text encoder model to `qfloat8` using `optimum-quanto`. see [Quanto: a PyTorch quantization backend for Optimum](https://huggingface.co/blog/quanto-introduction) and [Memory-efficient Diffusion Transformers with Quanto and Diffusers](https://huggingface.co/blog/quanto-diffusers) to convert Diffusion model weights to `qfloat8` so that we can use Flux in a 24G VRAM with Diffusers. 
 
@@ -104,10 +111,13 @@ If you use `FLUX.1-schnell`, set `num_inference_steps` to `4`.
 
 ![alt text](images/flux1_dev_sample.png)
 
+</details>
 
 ## Stable Diffusion 3
 
-Generate long prompt weighted embeddings for Stable Diffusion 3. A
+<details>
+
+<summary>Generate long prompt weighted embeddings for Stable Diffusion 3 </summary>
 
 Load up SD3 model:
 ```py
@@ -183,7 +193,13 @@ Using long weighted embedding result:
 Without long prompt weighted embedding result:
 ![alt text](./images/sd3_wo_lpw_1.png)
 
+</details>
+
 ## Stable Diffusion XL 
+
+<details>
+
+<summary>SDXL embedding usage sample</summary>
 
 To use the long prompt weighted embedding for SDXL, simply import the embedding function - `from sd_embed.embedding_funcs import get_weighted_text_embeddings_sdxl` for sdxl. 
 
@@ -256,7 +272,13 @@ Using long prompt weighted embedding:
 Without using long prompt weighted embedding:
 ![alt text](images/sdxl_wo_lpw_1.png)
 
+</details>
+
 ## Stable Diffusion V1.5
+
+<details>
+
+<summary>Stable Diffusion V1.5 usage sample</summary>
 
 To use the long prompt weighted embedding for SDXL, use the embedding function - `get_weighted_text_embeddings_sd15`. 
 
@@ -326,6 +348,7 @@ Using long prompt weighted embedding:
 Without using long prompt weighted embedding:
 ![alt text](images/sd15_wo_lpw_1.png)
 
+</details>
 
 ## Citation
 
