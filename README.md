@@ -1,5 +1,16 @@
 # Stable Diffusion Long Prompt Weighted Embedding
 
+- [Stable Diffusion Long Prompt Weighted Embedding](#stable-diffusion-long-prompt-weighted-embedding)
+  - [Updates](#updates)
+  - [Install](#install)
+  - [Flux.1](#flux1)
+  - [Stable Diffusion 3](#stable-diffusion-3)
+    - [Results](#results)
+  - [Stable Diffusion XL](#stable-diffusion-xl)
+    - [Results](#results-1)
+  - [Stable Diffusion V1.5](#stable-diffusion-v15)
+    - [Results](#results-2)
+  - [Citation](#citation)
 
 <a href="https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373" target="_blank"><img src="https://m.media-amazon.com/images/I/81qJBJlgGEL._SL1500_.jpg" alt="Using Stable Diffusion with Python" height="256px" align="right"></a>
 
@@ -25,14 +36,6 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 * [08/06/2024] Add FLUX.1 long prompt support, check out `samples/lpw_flux1.py` file to see the usage sample.
 
 * [06/30/2024] Add support Stable Diffusion 3 pipeline without T5 encoder.
-```py
-model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
-pipe = StableDiffusion3Pipeline.from_pretrained(
-    model_path
-    , torch_dtype       = torch.float16
-    , text_encoder_3    = None          # <- load SD3 without T5 encoder
-)
-```
 
 ## Install 
 
