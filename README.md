@@ -29,7 +29,7 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 
 ## Updates
 
-* [08/29/2024] Add a tool to convert Civitai.com FLUX model to Diffusers format.
+* [08/29/2024] Add a tool to convert Civitai.com FLUX model to Diffusers format. see sample code in `samples/convert_civitai_safetensor_to_diffusers.py`
 
 * [08/28/2024] Support `pipe.enable_model_cpu_offload()`, update sample code to use `torchao`, reduce VRAM usage.
 
