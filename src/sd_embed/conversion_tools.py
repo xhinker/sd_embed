@@ -479,4 +479,4 @@ class Flux1Convertor:
             
         transformer.to(self.dtype).save_pretrained(transformer_path)
         
-        return "conversion done"
+        return transformer_path
