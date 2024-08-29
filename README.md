@@ -40,7 +40,7 @@ pip install torchao --extra-index-url https://download.pytorch.org/whl/cu121 # f
 ```
 See more detail at [torchao](https://github.com/pytorch/ao)
 
-Install `sd_embed`
+Install `sd_embed`:
 ```sh
 pip install git+https://github.com/xhinker/sd_embed.git@main
 ```
