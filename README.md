@@ -18,6 +18,8 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 
 ## Updates
 
+* [08/28/2024] Support `pipe.enable_model_cpu_offload()`, update sample code to use `torchao`, reduce VRAM usage.
+
 * [08/06/2024] Add FLUX.1 long prompt support, check out `samples/lpw_flux1.py` file to see the usage sample.
 
 * [06/30/2024] Add support Stable Diffusion 3 pipeline without T5 encoder.
