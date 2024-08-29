@@ -34,6 +34,13 @@ pipe = StableDiffusion3Pipeline.from_pretrained(
 
 ## Install 
 
+install `torchao`:
+```
+pip install torchao --extra-index-url https://download.pytorch.org/whl/cu121 # full options are cpu/cu118/cu121/cu124
+```
+See more detail at [torchao](https://github.com/pytorch/ao)
+
+Install `sd_embed`
 ```sh
 pip install git+https://github.com/xhinker/sd_embed.git@main
 ```
