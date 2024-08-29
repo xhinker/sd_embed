@@ -24,6 +24,8 @@ from diffusers import StableDiffusionXLPipeline
 from diffusers import StableDiffusion3Pipeline
 import math
 from diffusers import FluxPipeline
+from typing import Tuple
+import gc
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
@@ -1333,23 +1335,36 @@ def get_weighted_text_embeddings_sd3(
     
     return sd3_prompt_embeds, sd3_neg_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
+
 def get_weighted_text_embeddings_flux1(
     pipe: FluxPipeline
-    , prompt : str      = ""
+    , prompt: str       = ""
     , prompt2: str      = None
     , device            = None
-):
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     This function can process long prompt with weights for flux1 model
     
     Args:
-
+        pipe (['FluxPipeline']): The FluxPipeline
+        prompt (['string']): the 1st prompt
+        prompt2 (['string']): the 2nd prompt
+        device (['string']): target device
     Returns:
-
+        A tuple include two embedding tensors
     """
     prompt2 = prompt if prompt2 is None else prompt2
-    if device is None:
-        device = pipe.device
+    
+    # so that user can assign custom cuda
+    if device is None or device == 'cpu':
+        target_device = 'cuda:0'
+    else:
+        target_device = device
+        
+    # prepare text_encoder and text_encoder_2
+    if not pipe.device.type.startswith('cuda'):
+        pipe.text_encoder.to(target_device)
+        pipe.text_encoder_2.to(target_device)
     
     # tokenizer 1 - openai/clip-vit-large-patch14
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
@@ -1386,12 +1401,13 @@ def get_weighted_text_embeddings_flux1(
         token_tensor = torch.tensor(
             [token_group]
             , dtype = torch.long
-            , device = device
+            , device = target_device
         )
-        prompt_embeds_1 = pipe.text_encoder(
-            token_tensor.to(device)
-            , output_hidden_states  = False
-        )
+        with torch.no_grad():
+            prompt_embeds_1 = pipe.text_encoder(
+                token_tensor.to(target_device)
+                , output_hidden_states  = False
+            )
         pooled_prompt_embeds = prompt_embeds_1.pooler_output.squeeze(0)
         pool_embeds_list.append(pooled_prompt_embeds)
         
@@ -1400,20 +1416,27 @@ def get_weighted_text_embeddings_flux1(
     # get the avg pool
     prompt_embeds = prompt_embeds.mean(dim=0, keepdim=True)
     # prompt_embeds = prompt_embeds.unsqueeze(0)
-    prompt_embeds = prompt_embeds.to(dtype = pipe.text_encoder.dtype, device = device)
+    prompt_embeds = prompt_embeds.to(dtype = pipe.text_encoder.dtype, device = target_device)
             
     # generate positive t5 embeddings 
     prompt_tokens_2 = torch.tensor([prompt_tokens_2],dtype=torch.long)
     
-    t5_prompt_embeds    = pipe.text_encoder_2(prompt_tokens_2.to(device))[0].squeeze(0)
-    t5_prompt_embeds    = t5_prompt_embeds.to(device=device)
+    with torch.no_grad():
+        t5_prompt_embeds    = pipe.text_encoder_2(prompt_tokens_2.to(target_device))[0].squeeze(0)
+    t5_prompt_embeds    = t5_prompt_embeds.to(device = target_device)
     
     # add weight to t5 prompt
     for z in range(len(prompt_weights_2)):
         if prompt_weights_2[z] != 1.0:
             t5_prompt_embeds[z] = t5_prompt_embeds[z] * prompt_weights_2[z]
     t5_prompt_embeds = t5_prompt_embeds.unsqueeze(0)
+    t5_prompt_embeds = t5_prompt_embeds.to(dtype = pipe.text_encoder_2.dtype, device = target_device)
     
-    t5_prompt_embeds = t5_prompt_embeds.to(dtype = pipe.text_encoder_2.dtype, device = device)
+    # release text encoder from vram
+    if pipe.device.type.startswith('cpu'):
+        pipe.text_encoder.to('cpu')
+        pipe.text_encoder_2.to('cpu')
+        gc.collect()
+        torch.cuda.empty_cache()
     
     return t5_prompt_embeds,prompt_embeds
