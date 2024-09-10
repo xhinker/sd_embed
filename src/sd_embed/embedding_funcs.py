@@ -1041,7 +1041,6 @@ def get_weighted_text_embeddings_s_cascade(
          neg_prompt_embeds (torch.Tensor)
          pooled_prompt_embeds (torch.Tensor)
          negative_pooled_prompt_embeds (torch.Tensor)
-
      """
     import math
     eos = pipe.tokenizer.eos_token_id
