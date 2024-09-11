@@ -16,7 +16,7 @@
 
 <a href="https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373" target="_blank"><img src="https://m.media-amazon.com/images/I/81qJBJlgGEL._SL1500_.jpg" alt="Using Stable Diffusion with Python" height="256px" align="right"></a>
 
-Overcoming the 77-token prompt limitation, generating long-weighted prompt embeddings for Stable Diffusion, this module supports generating embedding and pooled embeddings for long prompt weighted. The generated embedding is compatible with [Huggingface Diffusers](https://github.com/huggingface/diffusers).
+Overcoming the 77-token prompt limitation, generating long-weighted prompt embeddings for Stable Diffusion, this module supports generating embedding and pooled embeddings for long prompt weighted. The generated embedding is compatible with [Huggingface Diffusers](https://github.com/huggingface/diffusers). 
 
 The prompt format is compatible with [AUTOMATIC1111 stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
@@ -41,7 +41,7 @@ The detailed implementation is covered in chapter 10 of book [Using Stable Diffu
 
 * [06/30/2024] Add support Stable Diffusion 3 pipeline without T5 encoder.
 
-## Install
+## Install 
 
 install `torchao`:
 ```
@@ -61,9 +61,9 @@ pip install git+https://github.com/xhinker/sd_embed.git@main
 
 <summary>Flux.1 embedding usage</summary>
 
-To use Flux.1 in a 24G VRAM GPU, we need to quantize the Transformer model and T5 text encoder model to `qfloat8` using `optimum-quanto`. see [Quanto: a PyTorch quantization backend for Optimum](https://huggingface.co/blog/quanto-introduction) and [Memory-efficient Diffusion Transformers with Quanto and Diffusers](https://huggingface.co/blog/quanto-diffusers) to convert Diffusion model weights to `qfloat8` so that we can use Flux in a 24G VRAM with Diffusers.
+To use Flux.1 in a 24G VRAM GPU, we need to quantize the Transformer model and T5 text encoder model to `qfloat8` using `optimum-quanto`. see [Quanto: a PyTorch quantization backend for Optimum](https://huggingface.co/blog/quanto-introduction) and [Memory-efficient Diffusion Transformers with Quanto and Diffusers](https://huggingface.co/blog/quanto-diffusers) to convert Diffusion model weights to `qfloat8` so that we can use Flux in a 24G VRAM with Diffusers. 
 
-Here is the complete usage sample:
+Here is the complete usage sample: 
 
 ```py
 from diffusers import DiffusionPipeline, FluxTransformer2DModel
@@ -75,16 +75,16 @@ from sd_embed.embedding_funcs import get_weighted_text_embeddings_flux1
 model_path = "/home/andrewzhu/storage_14t_5/ai_models_all/sd_hf_models/black-forest-labs/FLUX.1-dev_main"
 
 transformer = FluxTransformer2DModel.from_pretrained(
-  model_path
-  , subfolder = "transformer"
-  , torch_dtype = torch.bfloat16
+    model_path
+    , subfolder = "transformer"
+    , torch_dtype = torch.bfloat16
 )
 quantize_(transformer, int8_weight_only())
 
 pipe = DiffusionPipeline.from_pretrained(
-  model_path
-  , transformer = transformer
-  , torch_dtype = torch.bfloat16
+    model_path
+    , transformer = transformer
+    , torch_dtype = torch.bfloat16
 )
 
 pipe.enable_model_cpu_offload()
@@ -99,22 +99,22 @@ timeless romance, poetic atmosphere, wistful mood, look at camera.
 """
 
 prompt_embeds, pooled_prompt_embeds = get_weighted_text_embeddings_flux1(
-  pipe        = pipe
-  , prompt    = prompt
+    pipe        = pipe
+    , prompt    = prompt
 )
 image = pipe(
-  prompt_embeds               = prompt_embeds
-  , pooled_prompt_embeds      = pooled_prompt_embeds
-  , width                     = 896
-  , height                    = 1280
-  , num_inference_steps       = 20
-  , guidance_scale            = 4.0
-  , generator                 = torch.Generator().manual_seed(1234)
+    prompt_embeds               = prompt_embeds
+    , pooled_prompt_embeds      = pooled_prompt_embeds
+    , width                     = 896
+    , height                    = 1280
+    , num_inference_steps       = 20
+    , guidance_scale            = 4.0
+    , generator                 = torch.Generator().manual_seed(1234)
 ).images[0]
 display(image)
 ```
 
-If you use `FLUX.1-schnell`, set `num_inference_steps` to `4`.
+If you use `FLUX.1-schnell`, set `num_inference_steps` to `4`. 
 
 ![alt text](images/flux1_dev_sample.png)
 
@@ -135,8 +135,8 @@ from sd_embed.embedding_funcs import get_weighted_text_embeddings_sd3
 
 model_path = "stabilityai/stable-diffusion-3-medium-diffusers"
 pipe = StableDiffusion3Pipeline.from_pretrained(
-  model_path,
-  torch_dtype=torch.float16
+    model_path,
+    torch_dtype=torch.float16
 )
 ```
 
@@ -163,26 +163,26 @@ bad hands,missing fingers,(extra arms and legs),(worst quality:2),(low quality:2
 """
 
 (
-  prompt_embeds
-  , prompt_neg_embeds
-  , pooled_prompt_embeds
-  , negative_pooled_prompt_embeds
+    prompt_embeds
+    , prompt_neg_embeds
+    , pooled_prompt_embeds
+    , negative_pooled_prompt_embeds
 ) = get_weighted_text_embeddings_sd3(
-  pipe
-  , prompt = prompt
-  , neg_prompt = neg_prompt
+    pipe
+    , prompt = prompt
+    , neg_prompt = neg_prompt
 )
 
 image = pipe(
-  prompt_embeds                   = prompt_embeds
-  , negative_prompt_embeds        = prompt_neg_embeds
-  , pooled_prompt_embeds          = pooled_prompt_embeds
-  , negative_pooled_prompt_embeds = negative_pooled_prompt_embeds
-  , num_inference_steps           = 30
-  , height                        = 1024
-  , width                         = 1024 + 512
-  , guidance_scale                = 4.0
-  , generator                     = torch.Generator("cuda").manual_seed(2)
+    prompt_embeds                   = prompt_embeds
+    , negative_prompt_embeds        = prompt_neg_embeds
+    , pooled_prompt_embeds          = pooled_prompt_embeds
+    , negative_pooled_prompt_embeds = negative_pooled_prompt_embeds
+    , num_inference_steps           = 30
+    , height                        = 1024 
+    , width                         = 1024 + 512
+    , guidance_scale                = 4.0
+    , generator                     = torch.Generator("cuda").manual_seed(2)
 ).images[0]
 display(image)
 
@@ -311,13 +311,13 @@ Without using long prompt weighted embedding:
 
 </details>
 
-## Stable Diffusion XL
+## Stable Diffusion XL 
 
 <details>
 
 <summary>SDXL embedding usage sample</summary>
 
-To use the long prompt weighted embedding for SDXL, simply import the embedding function - `from sd_embed.embedding_funcs import get_weighted_text_embeddings_sdxl` for sdxl.
+To use the long prompt weighted embedding for SDXL, simply import the embedding function - `from sd_embed.embedding_funcs import get_weighted_text_embeddings_sdxl` for sdxl. 
 
 ```py
 import gc
@@ -396,7 +396,7 @@ Without using long prompt weighted embedding:
 
 <summary>Stable Diffusion V1.5 usage sample</summary>
 
-To use the long prompt weighted embedding for SDXL, use the embedding function - `get_weighted_text_embeddings_sd15`.
+To use the long prompt weighted embedding for SDXL, use the embedding function - `get_weighted_text_embeddings_sd15`. 
 
 ```py
 import gc
