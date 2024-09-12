@@ -6,10 +6,12 @@
   - [Flux.1](#flux1)
   - [Stable Diffusion 3](#stable-diffusion-3)
     - [Results](#results)
-  - [Stable Diffusion XL](#stable-diffusion-xl)
+  - [Stable Cascade](#stable-cascade)
     - [Results](#results-1)
-  - [Stable Diffusion V1.5](#stable-diffusion-v15)
+  - [Stable Diffusion XL](#stable-diffusion-xl)
     - [Results](#results-2)
+  - [Stable Diffusion V1.5](#stable-diffusion-v15)
+    - [Results](#results-3)
   - [Citation](#citation)
 
 <a href="https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373" target="_blank"><img src="https://m.media-amazon.com/images/I/81qJBJlgGEL._SL1500_.jpg" alt="Using Stable Diffusion with Python" height="256px" align="right"></a>
@@ -28,6 +30,8 @@ Support Stable Diffusion v1.5, SDXL and **Stable Diffusion 3**.
 The detailed implementation is covered in chapter 10 of book [Using Stable Diffusion with Python](https://www.amazon.com/Using-Stable-Diffusion-Python-Generation/dp/1835086373/ref=sr_1_1?crid=2EF28F3KPIZMI&dib=eyJ2IjoiMSJ9.quUjZV6jP2UJs4Uv72YiPA.IPU_TA7myv0fiuvYuspHdYbCcFWhg7USvj1p9KI_4RM&dib_tag=se&keywords=Using+Stable+Diffusion+with+Python&qid=1717696681&sprefix=using+stable+diffusion+with+python%2Caps%2C184&sr=8-1)
 
 ## Updates
+
+* [09/10/2024] Add Stable Cascade long prompt support, check out `samples/lpw_stablecascade.py` file to see the usage sample.
 
 * [08/29/2024] Add a tool to convert Civitai.com FLUX model to Diffusers format. see sample code in `samples/convert_civitai_safetensor_to_diffusers.py`
 
@@ -195,6 +199,115 @@ Using long weighted embedding result:
 
 Without long prompt weighted embedding result:
 ![alt text](./images/sd3_wo_lpw_1.png)
+
+</details>
+
+## Stable Cascade
+
+<details>
+
+<summary>Stable Cascade embedding usage sample</summary>
+
+To use the long prompt weighted embedding for Stable Cascade, simply import the embedding function - `from sd_embed.embedding_funcs import get_weighted_text_embeddings_s_cascade` for stable cascade.
+
+```py
+import gc
+import torch
+from sd_embed.embedding_funcs import get_weighted_text_embeddings_s_cascade
+from diffusers import StableCascadePriorPipeline, StableCascadeDecoderPipeline
+
+prior = StableCascadePriorPipeline.from_pretrained(
+    "stabilityai/stable-cascade-prior",
+    variant='bf16',
+    torch_dtype=torch.bfloat16)
+
+decoder = StableCascadeDecoderPipeline.from_pretrained(
+    "stabilityai/stable-cascade",
+    variant='bf16',
+    torch_dtype=torch.float16)
+
+prompt = """A whimsical and creative image depicting a hybrid creature that is a mix of a waffle and a hippopotamus. 
+This imaginative creature features the distinctive, bulky body of a hippo, 
+but with a texture and appearance resembling a golden-brown, crispy waffle. 
+The creature might have elements like waffle squares across its skin and a syrup-like sheen. 
+It's set in a surreal environment that playfully combines a natural water habitat of a hippo with elements of a breakfast table setting, 
+possibly including oversized utensils or plates in the background. 
+The image should evoke a sense of playful absurdity and culinary fantasy.
+"""
+
+neg_prompt = """\
+skin spots,acnes,skin blemishes,age spot,(ugly:1.2),(duplicate:1.2),(morbid:1.21),(mutilated:1.2),\
+(tranny:1.2),mutated hands,(poorly drawn hands:1.5),blurry,(bad anatomy:1.2),(bad proportions:1.3),\
+extra limbs,(disfigured:1.2),(missing arms:1.2),(extra legs:1.2),(fused fingers:1.5),\
+(too many fingers:1.5),(unclear eyes:1.2),lowers,bad hands,missing fingers,extra digit,\
+bad hands,missing fingers,(extra arms and legs),(worst quality:2),(low quality:2),\
+(normal quality:2),lowres,((monochrome)),((grayscale))
+"""
+
+generator = torch.Generator(device='cuda').manual_seed(3)
+
+# prior
+prior.to('cuda')
+
+(
+    prompt_embeds
+    , negative_prompt_embeds
+    , pooled_prompt_embeds
+    , negative_prompt_embeds_pooled
+) = get_weighted_text_embeddings_s_cascade(prior, prompt, neg_prompt)
+
+prior_output = prior(
+    prompt_embeds                   = prompt_embeds
+    , negative_prompt_embeds        = negative_prompt_embeds
+    , prompt_embeds_pooled          = pooled_prompt_embeds
+    , negative_prompt_embeds_pooled = negative_prompt_embeds_pooled
+    , num_inference_steps           = 30
+    , guidance_scale                = 8
+    , height                        = 1024
+    , width                         = 1024 + 512
+    , generator                     = generator
+)
+
+del prompt_embeds, pooled_prompt_embeds, negative_prompt_embeds, negative_prompt_embeds_pooled
+prior.to('cpu')
+
+# decoder
+decoder.to('cuda')
+
+(
+    prompt_embeds
+    , negative_prompt_embeds
+    , pooled_prompt_embeds
+    , negative_prompt_embeds_pooled
+) = get_weighted_text_embeddings_s_cascade(decoder, prompt, neg_prompt)
+
+image = decoder(
+    prompt_embeds                   = prompt_embeds
+    , negative_prompt_embeds        = negative_prompt_embeds
+    , prompt_embeds_pooled          = pooled_prompt_embeds
+    , negative_prompt_embeds_pooled = negative_prompt_embeds_pooled
+    , image_embeddings              = prior_output.image_embeddings.half()
+    , num_inference_steps           = 10
+    , guidance_scale                = 0
+    , generator                     = generator
+).images[0]
+
+display(image)
+
+del prompt_embeds, pooled_prompt_embeds, negative_prompt_embeds, negative_prompt_embeds_pooled
+decoder.to('cpu')
+gc.collect()
+torch.cuda.empty_cache()
+```
+
+
+### Results
+
+Using long prompt weighted embedding:
+![alt text](images/stablecascade_w_lpw_1.png)
+
+Without using long prompt weighted embedding:
+![alt text](images/stablecascade_wo_lpw_1.png)
 
 </details>
 
