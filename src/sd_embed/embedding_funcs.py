@@ -27,6 +27,7 @@ import math
 from diffusers import FluxPipeline
 from typing import Tuple
 import gc
+import typing
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
@@ -1023,7 +1024,7 @@ def get_weighted_text_embeddings_sdxl_2p(
 
 
 def get_weighted_text_embeddings_s_cascade(
-        pipe: type[StableCascadePriorPipeline | StableCascadeDecoderPipeline]
+        pipe: typing.Union[StableCascadePriorPipeline, StableCascadeDecoderPipeline]
         , prompt: str = ""
         , neg_prompt: str = ""
         , pad_last_block: bool = True
