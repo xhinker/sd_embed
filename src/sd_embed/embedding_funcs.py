@@ -1023,7 +1023,7 @@ def get_weighted_text_embeddings_sdxl_2p(
 
 
 def get_weighted_text_embeddings_s_cascade(
-        pipe: StableCascadePriorPipeline and StableCascadeDecoderPipeline
+        pipe: type[StableCascadePriorPipeline | StableCascadeDecoderPipeline]
         , prompt: str = ""
         , neg_prompt: str = ""
         , pad_last_block: bool = True
