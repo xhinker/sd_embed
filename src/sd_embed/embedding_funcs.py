@@ -1034,7 +1034,7 @@ def get_weighted_text_embeddings_s_cascade(
      for Stable Cascade
 
      Args:
-         pipe (StableCascadePriorPipeline and StableCascadeDecoderPipeline)
+         pipe (typing.Union[StableCascadePriorPipeline, StableCascadeDecoderPipeline])
          prompt (str)
          neg_prompt (str)
      Returns:
