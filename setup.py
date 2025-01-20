@@ -11,19 +11,10 @@ setup(
     , url              = 'https://github.com/xhinker/sd_embed'
     , keywords         = 'diffusers stable-diffusion embedding'
     , install_requires = [
-        'optimum-quanto'
-        , 'torch'
-        , 'torchvision'
-        , 'torchaudio'
-        , 'sentencepiece'
-        , 'accelerate'
-        , 'peft'
+        'torch'
         , 'transformers'
         , 'diffusers'
         , 'lark'
-        , 'protobuf'
-        , 'ipykernel'
-        , 'ipywidgets'
         , 'safetensors'
     ]
     , include_package_data=True
