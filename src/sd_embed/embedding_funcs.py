@@ -402,17 +402,6 @@ def dynamically_unscale_lora_layers(
   
 # END: based on https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L531
 
-
-        if self.text_encoder is not None:
-            if isinstance(self, StableDiffusionXLLoraLoaderMixin) and USE_PEFT_BACKEND:
-                # Retrieve the original scale by scaling back the LoRA layers
-                unscale_lora_layers(self.text_encoder, lora_scale)
-
-        if self.text_encoder_2 is not None:
-            if isinstance(self, StableDiffusionXLLoraLoaderMixin) and USE_PEFT_BACKEND:
-                # Retrieve the original scale by scaling back the LoRA layers
-                unscale_lora_layers(self.text_encoder_2, lora_scale)
-
 def get_weighted_text_embeddings_sdxl(
     pipe: StableDiffusionXLPipeline
     , prompt : str                  = ""
