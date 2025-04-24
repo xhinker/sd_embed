@@ -23,11 +23,26 @@ import torch
 from diffusers import StableDiffusionXLPipeline
 from diffusers import StableCascadePriorPipeline, StableCascadeDecoderPipeline
 from diffusers import StableDiffusion3Pipeline
+from diffusers.models.lora import adjust_lora_scale_text_encoder
+from diffusers.utils import (
+    USE_PEFT_BACKEND,
+    scale_lora_layers,
+    unscale_lora_layers,
+)
 import math
 from diffusers import FluxPipeline
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 from typing import Tuple
+from typing import TypeVar
+from typing import Union
 import gc
+import logging
 import typing
+
+logger = logging.getLogger(__name__)
 
 def get_prompts_tokens_with_weights(
     clip_tokenizer: CLIPTokenizer
@@ -176,6 +191,37 @@ def group_tokens_and_weights(
         
     return new_token_ids, new_weights
 
+def get_prompt_hidden_states(
+    prompt_embeds: torch.Tensor
+    , final_layer_index: int
+    , clip_skip: Optional[int]   = None
+):
+    if clip_skip is None:
+        return prompt_embeds.hidden_states[-(final_layer_index)]
+    return prompt_embeds.hidden_states[-(clip_skip + final_layer_index)]
+
+def get_prompt_hidden_states_sdxl(
+    prompt_embeds: torch.Tensor
+    , clip_skip: Optional[int]   = None
+):
+    # "'2' because SDXL always indexes from the penultimate layer."
+    # (https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L436)
+    return get_prompt_hidden_states(prompt_embeds, 2, clip_skip=clip_skip)
+
+def get_prompt_hidden_states_s_cascade(
+    prompt_embeds: torch.Tensor
+    , clip_skip: Optional[int]   = None
+):
+    # 
+    return get_prompt_hidden_states(prompt_embeds, 1, clip_skip=clip_skip)
+
+def get_prompt_hidden_states_sd3(
+    prompt_embeds: torch.Tensor
+    , clip_skip: Optional[int]   = None
+):
+    # SD3 seems to use the same layer index as SDXL
+    return get_prompt_hidden_states(prompt_embeds, 2, clip_skip=clip_skip)
+
 def get_weighted_text_embeddings_sd15(
     pipe: StableDiffusionPipeline
     , prompt : str      = ""
@@ -311,12 +357,58 @@ def get_weighted_text_embeddings_sd15(
     
     return prompt_embeds, neg_prompt_embeds
 
+# Dynamically adjust the LoRA scale, determining which text_encoder attributes the pipeline has (if any) dynamically as well
+# BEGIN: based on https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L367
+def dynamically_scale_lora_layers(
+    pipe: DiffusionPipeline
+    , lora_scale: Optional[float]  = None
+):
+    if lora_scale is None:
+        return
+
+    text_encoder_attributes: List[str] = [ "text_encoder", "text_encoder_2", "text_encoder_3" ]
+    for attribute_name in text_encoder_attributes:
+        if hasattr(pipe, attribute_name):
+            try:
+                encoder_attribute: Optional[Any] = getattr(pipe, attribute_name)
+                if encoder_attribute is not None:
+                    if not USE_PEFT_BACKEND:
+                        adjust_lora_scale_text_encoder(encoder_attribute, lora_scale)
+                    else:
+                        scale_lora_layers(encoder_attribute, lora_scale)
+            except Exception as e:
+                logger.error(f"Couldn't apply LoRA scale to pipeline attribute {attribute_name}: {e}\n{traceback.format_exc()}")
+                    
+# END: based on https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L367
+
+# Undo the changes caused by scale_lora_layers, determining which text_encoder attributes the pipeline has (if any) dynamically as well
+# BEGIN: based on https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L531
+def dynamically_unscale_lora_layers(
+    pipe: DiffusionPipeline
+    , lora_scale: Optional[float]   = None
+):
+    if lora_scale is None or not USE_PEFT_BACKEND:
+        return
+
+    text_encoder_attributes: List[str] = [ "text_encoder", "text_encoder_2", "text_encoder_3" ]
+    for attribute_name in text_encoder_attributes:
+        if hasattr(pipe, attribute_name):
+            try:
+                encoder_attribute: Optional[Any] = getattr(pipe, attribute_name)
+                if encoder_attribute is not None:
+                    unscale_lora_layers(encoder_attribute, lora_scale)
+            except Exception as e:
+                logger.error(f"Couldn't unscale LoRA for pipeline attribute {attribute_name}: {e}\n{traceback.format_exc()}")
+  
+# END: based on https://github.com/huggingface/diffusers/blob/9f5ad1db4197d6c2b503dd5fa3ef4dbec12a4f96/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl_img2img.py#L531
 
 def get_weighted_text_embeddings_sdxl(
     pipe: StableDiffusionXLPipeline
-    , prompt : str      = ""
-    , neg_prompt: str   = ""
-    , pad_last_block    = True
+    , prompt : str                  = ""
+    , neg_prompt: str               = ""
+    , pad_last_block                = True
+    , lora_scale: Optional[float]   = None
+    , clip_skip: Optional[int]      = None
 ):
     """
     This function can process long prompt with weights, no length limitation 
@@ -350,6 +442,7 @@ def get_weighted_text_embeddings_sdxl(
     """
     import math
     eos = pipe.tokenizer.eos_token_id 
+    dynamically_scale_lora_layers(pipe, lora_scale = lora_scale)
     
     # tokenizer 1
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
@@ -469,14 +562,14 @@ def get_weighted_text_embeddings_sdxl(
             token_tensor.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2]
+        prompt_embeds_1_hidden_states = get_prompt_hidden_states_sdxl(prompt_embeds_1, clip_skip=clip_skip)
 
         # use second text encoder
         prompt_embeds_2 = pipe.text_encoder_2(
             token_tensor_2.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
+        prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(prompt_embeds_2, clip_skip=clip_skip)
         pooled_prompt_embeds = prompt_embeds_2[0]
 
         prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
@@ -528,14 +621,14 @@ def get_weighted_text_embeddings_sdxl(
             neg_token_tensor.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2]
+        neg_prompt_embeds_1_hidden_states = get_prompt_hidden_states_sdxl(neg_prompt_embeds_1, clip_skip=clip_skip)        
 
         # use second text encoder
         neg_prompt_embeds_2 = pipe.text_encoder_2(
             neg_token_tensor_2.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
+        neg_prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(neg_prompt_embeds_2, clip_skip=clip_skip)
         negative_pooled_prompt_embeds = neg_prompt_embeds_2[0]
 
         neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states, neg_prompt_embeds_2_hidden_states]
@@ -567,12 +660,16 @@ def get_weighted_text_embeddings_sdxl(
     prompt_embeds           = torch.cat(embeds, dim = 1)
     negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1)
     
+    dynamically_unscale_lora_layers(pipe, lora_scale = lora_scale)
+    
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 def get_weighted_text_embeddings_sdxl_refiner(
     pipe: StableDiffusionXLPipeline
-    , prompt : str      = ""
-    , neg_prompt: str   = ""
+    , prompt : str                  = ""
+    , neg_prompt: str               = ""
+    , lora_scale: Optional[float]   = None
+    , clip_skip: Optional[int]      = None
 ):
     """
     This function can process long prompt with weights, no length limitation 
@@ -606,6 +703,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
     """
     import math
     eos = 49407 #pipe.tokenizer.eos_token_id 
+    dynamically_scale_lora_layers(pipe, lora_scale = lora_scale)
     
     # tokenizer 2
     prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights(
@@ -673,7 +771,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
             token_tensor_2.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
+        prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(prompt_embeds_2, clip_skip=clip_skip)
         pooled_prompt_embeds = prompt_embeds_2[0]
 
         prompt_embeds_list = [prompt_embeds_2_hidden_states]
@@ -718,7 +816,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
             neg_token_tensor_2.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
+        neg_prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(neg_prompt_embeds_2, clip_skip=clip_skip)
         negative_pooled_prompt_embeds = neg_prompt_embeds_2[0]
 
         neg_prompt_embeds_list = [neg_prompt_embeds_2_hidden_states]
@@ -747,14 +845,18 @@ def get_weighted_text_embeddings_sdxl_refiner(
     prompt_embeds           = torch.cat(embeds, dim = 1)
     negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1)
     
+    dynamically_unscale_lora_layers(pipe, lora_scale = lora_scale)
+    
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 def get_weighted_text_embeddings_sdxl_2p(
     pipe: StableDiffusionXLPipeline
-    , prompt : str      = ""
-    , prompt_2 : str    = None
-    , neg_prompt: str   = ""
-    , neg_prompt_2: str = None
+    , prompt : str                  = ""
+    , prompt_2 : str                = None
+    , neg_prompt: str               = ""
+    , neg_prompt_2: str             = None
+    , lora_scale: Optional[float]   = None
+    , clip_skip: Optional[int]      = None
 ):
     """
     This function can process long prompt with weights, no length limitation 
@@ -790,7 +892,9 @@ def get_weighted_text_embeddings_sdxl_2p(
     neg_prompt_2    = neg_prompt_2 or neg_prompt
     
     import math
-    eos = pipe.tokenizer.eos_token_id 
+    eos = pipe.tokenizer.eos_token_id
+    
+    dynamically_scale_lora_layers(pipe, lora_scale = lora_scale)
     
     # tokenizer 1
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
@@ -930,14 +1034,14 @@ def get_weighted_text_embeddings_sdxl_2p(
             token_tensor.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2]
+        prompt_embeds_1_hidden_states = get_prompt_hidden_states_sdxl(prompt_embeds_1, clip_skip=clip_skip)
 
         # use second text encoder
         prompt_embeds_2 = pipe.text_encoder_2(
             token_tensor_2.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
+        prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(prompt_embeds_2, clip_skip=clip_skip)
         pooled_prompt_embeds = prompt_embeds_2[0]
         
         prompt_embeds_1_hidden_states = prompt_embeds_1_hidden_states.squeeze(0)
@@ -985,14 +1089,14 @@ def get_weighted_text_embeddings_sdxl_2p(
             neg_token_tensor.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2]
+        neg_prompt_embeds_1_hidden_states = get_prompt_hidden_states_sdxl(neg_prompt_embeds_1, clip_skip=clip_skip)
 
         # use second text encoder
         neg_prompt_embeds_2 = pipe.text_encoder_2(
             neg_token_tensor_2.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
+        neg_prompt_embeds_2_hidden_states = get_prompt_hidden_states_sdxl(neg_prompt_embeds_2, clip_skip=clip_skip)
         negative_pooled_prompt_embeds = neg_prompt_embeds_2[0]
         
         neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1_hidden_states.squeeze(0)
@@ -1020,14 +1124,18 @@ def get_weighted_text_embeddings_sdxl_2p(
     prompt_embeds           = torch.cat(embeds, dim = 1)
     negative_prompt_embeds  = torch.cat(neg_embeds, dim = 1)
     
+    dynamically_unscale_lora_layers(pipe, lora_scale = lora_scale)
+    
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 
 def get_weighted_text_embeddings_s_cascade(
         pipe: typing.Union[StableCascadePriorPipeline, StableCascadeDecoderPipeline]
-        , prompt: str = ""
-        , neg_prompt: str = ""
-        , pad_last_block: bool = True
+        , prompt: str                   = ""
+        , neg_prompt: str               = ""
+        , pad_last_block: bool          = True
+        , lora_scale: Optional[float]   = None
+        , clip_skip: Optional[int]      = None
 ):
     """
      This function can process long prompt with weights, no length limitation
@@ -1045,6 +1153,8 @@ def get_weighted_text_embeddings_s_cascade(
      """
     import math
     eos = pipe.tokenizer.eos_token_id
+    
+    dynamically_scale_lora_layers(pipe, lora_scale = lora_scale)
 
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
         pipe.tokenizer, prompt
@@ -1111,7 +1221,7 @@ def get_weighted_text_embeddings_s_cascade(
             token_tensor.to(pipe.device)
             , output_hidden_states=True
         )
-        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-1].cpu()
+        prompt_embeds_1_hidden_states = get_prompt_hidden_states_s_cascade(prompt_embeds_1, clip_skip=clip_skip).cpu()
 
         pooled_prompt_embeds = prompt_embeds_1.text_embeds.unsqueeze(1)
 
@@ -1160,7 +1270,7 @@ def get_weighted_text_embeddings_s_cascade(
             neg_token_tensor.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-1].cpu()
+        neg_prompt_embeds_1_hidden_states = get_prompt_hidden_states_s_cascade(neg_prompt_embeds_1, clip_skip=clip_skip).cpu()
         negative_pooled_prompt_embeds = neg_prompt_embeds_1.text_embeds.unsqueeze(1)
 
         neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states]
@@ -1191,15 +1301,19 @@ def get_weighted_text_embeddings_s_cascade(
     prompt_embeds = torch.cat(embeds, dim=1).to(pipe.device)
     negative_prompt_embeds = torch.cat(neg_embeds, dim=1).to(pipe.device)
 
+    dynamically_unscale_lora_layers(pipe, lora_scale = lora_scale)
+
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 
 def get_weighted_text_embeddings_sd3(
     pipe: StableDiffusion3Pipeline
-    , prompt : str      = ""
-    , neg_prompt: str   = ""
-    , pad_last_block    = True
-    , use_t5_encoder    = True
+    , prompt : str                  = ""
+    , neg_prompt: str               = ""
+    , pad_last_block                = True
+    , use_t5_encoder                = True
+    , lora_scale: Optional[float]   = None
+    , clip_skip: Optional[int]      = None
 ):
     """
     This function can process long prompt with weights, no length limitation 
@@ -1217,6 +1331,8 @@ def get_weighted_text_embeddings_sd3(
     """
     import math
     eos = pipe.tokenizer.eos_token_id 
+    
+    dynamically_scale_lora_layers(pipe, lora_scale = lora_scale)
     
     # tokenizer 1
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
@@ -1345,7 +1461,7 @@ def get_weighted_text_embeddings_sd3(
             token_tensor.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_1_hidden_states = prompt_embeds_1.hidden_states[-2]
+        prompt_embeds_1_hidden_states = get_prompt_hidden_states_sd3(prompt_embeds_1, clip_skip=clip_skip)
         pooled_prompt_embeds_1 = prompt_embeds_1[0]
 
         # use second text encoder
@@ -1353,7 +1469,7 @@ def get_weighted_text_embeddings_sd3(
             token_tensor_2.to(pipe.device)
             , output_hidden_states = True
         )
-        prompt_embeds_2_hidden_states = prompt_embeds_2.hidden_states[-2]
+        prompt_embeds_2_hidden_states = get_prompt_hidden_states_sd3(prompt_embeds_2, clip_skip=clip_skip)
         pooled_prompt_embeds_2 = prompt_embeds_2[0]
 
         prompt_embeds_list = [prompt_embeds_1_hidden_states, prompt_embeds_2_hidden_states]
@@ -1405,7 +1521,7 @@ def get_weighted_text_embeddings_sd3(
             neg_token_tensor.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_1_hidden_states = neg_prompt_embeds_1.hidden_states[-2]
+        neg_prompt_embeds_1_hidden_states = get_prompt_hidden_states_sd3(neg_prompt_embeds_1, clip_skip=clip_skip)
         negative_pooled_prompt_embeds_1 = neg_prompt_embeds_1[0]
 
         # use second text encoder
@@ -1413,7 +1529,7 @@ def get_weighted_text_embeddings_sd3(
             neg_token_tensor_2.to(pipe.device)
             , output_hidden_states=True
         )
-        neg_prompt_embeds_2_hidden_states = neg_prompt_embeds_2.hidden_states[-2]
+        neg_prompt_embeds_2_hidden_states = get_prompt_hidden_states_sd3(neg_prompt_embeds_2, clip_skip=clip_skip)
         negative_pooled_prompt_embeds_2 = neg_prompt_embeds_2[0]
 
         neg_prompt_embeds_list = [neg_prompt_embeds_1_hidden_states, neg_prompt_embeds_2_hidden_states]
@@ -1505,6 +1621,8 @@ def get_weighted_text_embeddings_sd3(
     elif size_diff < 0:
         padding = (0, 0, 0, abs(size_diff), 0, 0)
         sd3_neg_prompt_embeds = F.pad(sd3_neg_prompt_embeds, padding)
+    
+    dynamically_unscale_lora_layers(pipe, lora_scale = lora_scale)
     
     return sd3_prompt_embeds, sd3_neg_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
