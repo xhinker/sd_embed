@@ -1,3 +1,10 @@
+# Development requirements
+torch
+torchvision
+torchaudio
 transformers
 diffusers
 lark
+optimum-quanto
+safetensors
+torchao
